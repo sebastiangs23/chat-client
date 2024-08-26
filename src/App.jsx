@@ -1,10 +1,28 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import io from "socket.io-client";
 import reactLogo from "./assets/react.svg";
 import viteLogo from "/vite.svg";
 import "./App.css";
 
-function App() {
+const socket = io("http://localhost:2337/server", {
+  withCredentials: true,
+});
 
+function App() {
+  useEffect(() => {
+    handleConnection();
+  }, []);
+
+  async function handleConnection() {
+    try {
+      socket.on("chat message", () => {
+        console.log("socket.connected -->", socket.connected); //deberia darme true
+        console.log("Aca deberia esta el ID: ", socket.id);
+      });
+    } catch (error) {
+      console.log(error);
+    }
+  }
 
   return (
     <div>
@@ -17,11 +35,6 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      
-      <div>
-        
-      </div>
-
     </div>
   );
 }
