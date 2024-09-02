@@ -1,39 +1,90 @@
-import { useState, useEffect } from "react";
-import io from "socket.io-client";
-import reactLogo from "./assets/react.svg";
-import viteLogo from "/vite.svg";
-import "./App.css";
+import Parse from 'parse';
+import { useState, useEffect } from 'react';
+import socketConnect from "./config/socket.config"; 
+import axios from 'axios';
+import { apiClient } from './config/axios.config';
+import "./App.css"
 
-const socket = io("http://localhost:2337/server", {
-  withCredentials: true,
-});
 
 function App() {
+  const [messages, setMessages] = useState([]);
+  const [users, setUsers] = useState([]);
+
+  /*______________________
+  |  USE EFFECT REQUEST */
   useEffect(() => {
-    handleConnection();
+    getUsers();
   }, []);
 
-  async function handleConnection() {
-    try {
-      socket.on("chat message", () => {
-        console.log("socket.connected -->", socket.connected); //deberia darme true
-        console.log("Aca deberia esta el ID: ", socket.id);
+  /*____________________________
+  |  USE EFFECT DEL LIVEQUERY */
+  useEffect(() => {
+    const { client } = socketConnect();
+
+    client.open();
+
+    //aca se concecta ala clase chatMessage que es la coleccion
+    const ChatMessage = Parse.Object.extend('chatMessage');
+    const query = new Parse.Query(ChatMessage);
+
+    query.subscribe().then(subscription => {
+
+      subscription.on('open', () => {
+        console.log('Abierta');
       });
-    } catch (error) {
-      console.log(error);
+
+      subscription.on('create', (message) => {
+        setMessages((prevMessages) => [...prevMessages, message]);
+      });
+
+      subscription.on('close', () => {
+        console.log('Subscription closed');
+      });
+    }).catch(error => {
+      console.error('Failed to subscribe', error);
+    });
+
+    // Esta vaina se rompe , tengo q verlo
+    // return () => {
+    //   query.unsubscribe().then(subscription => {
+    //     subscription.unsubscribe();
+    //     client.close();  // Cierra la conexión WebSocket al desmontar
+    //   });
+    // };
+  }, []);
+
+  /*__________________
+  |  SERVER REQUEST */
+  async function getUsers(){
+    try{
+      const response = await apiClient.post(`/functions/getAllUsers`);
+      console.log('here -->', response.data.result.users.users)
+      setUsers(response.data.result.users.users);
+    }catch(error){
+      console.log(error)
     }
   }
 
   return (
-    <div>
-      <h1>CHAT CLIENTE</h1>
-      <div>
-        <a href="https://vitejs.dev" target="_blank">
-          <img src={viteLogo} className="logo" alt="Vite logo" />
-        </a>
-        <a href="https://react.dev" target="_blank">
-          <img src={reactLogo} className="logo react" alt="React logo" />
-        </a>
+    <div className="app-container">
+      
+      <aside className="sidebar">
+        <h2>Usuarios</h2>
+        <ul className="user-list">
+          {users && users.map((user, index) => (
+            <li key={index} className="user-item">
+              {user.username}
+            </li>
+          ))}
+        </ul>
+      </aside>
+
+      <div className="chat-container">
+        {messages.map((message, index) => (
+          <div key={index}>
+            {message.get('text')}
+          </div>
+        ))}
       </div>
     </div>
   );
